@@ -60,3 +60,6 @@ VAR={}
 
 #create a dictionary for stored variables
 StoredVariables={}
+
+# create a dictionary for label
+labels={}
