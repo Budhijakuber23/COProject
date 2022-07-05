@@ -59,7 +59,7 @@ StoredRegisters = {
 VAR={}
 
 #create a dictionary for stored variables
-StoredVariables={}
+StoredVars={}
 
 # create a dictionary for label
 labels={}
