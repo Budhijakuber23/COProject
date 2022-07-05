@@ -92,7 +92,7 @@ lines = n + lineNo
 if lines > 255:
     raise Exception(f"Memory Overload!")
 
-if "hlt" not in instructions[-1]:
+if "instructions[-1] != "hlt":
     raise Exception("Mising or Improper use of Hlt")
 
 for i in range(lines) :
