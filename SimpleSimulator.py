@@ -1,3 +1,4 @@
+
 from sys import stdin
 
 pc = 0
@@ -42,46 +43,47 @@ opcodes = {
 def flag_reset():
     registers["111"]=0
 
-def convertToBin(num, b):
-    if (num == 0):
-        return "0" * b
-    ans = ""
-    while (num > 1):
-        ans = str(num % 2) + ans
-        num = int(num / 2)
-    ans = "1" + ans
-    bL = b-len(ans)
-    if (bL > 0):
-        ans = ("0" * bL) + ans
-    return ans
-
-
-def convertToDecimal(stri):
-
-    binNum = str(stri)
-    
-    Ret = 0
-    n = len(binNum)
-    for i in range(n):
-        if binNum[n - i - 1] == "1":
-            Ret += pow(2, i)
-        else:
-            continue
-    return Ret
-
-
-def pc_reg_dump(count):
-
-    print(count, end=" ")
-    for vals in registers.values():
-        print(convertToBin(vals, 16), end=" ")
+def pcReg(pc):
+    print(pc, end=" ")
+    for i in registers.values():
+        print(convertToBin(i, 16), end=" ")
     print()
 
+def convertToBin(num, bits):
+    if num==0:
+        return "0" * bits
+    else:
+        ans=""
+        while(num>1):
+            solpart=str(num%2)
+            ans+=solpart
+            num=int(num/2)
+    ans="1"+ans
+
+    leftBits= bits - len(ans)
+    if (leftBits>0):
+        padd="0"* leftBits
+        ans=padd+ans
+    return ans
 
 def memory_dump(mem):
     
     for m in range(len(mem)):
         print(mem[m])
+
+def convertToDecimal(Bstr):
+    num=list(Bstr)
+    ans=0
+    n=len(num)
+    i=0
+    while(i!=n):
+        if num[n-i-1]=='1':
+            ans+=2**i
+            i+=1
+        else:
+            i+=1
+            continue
+    return ans
 
 def TypeA(i):
     
@@ -103,6 +105,18 @@ def TypeA(i):
             registers["111"] = 8
             result = convertToDecimal(resInBin)
 
+    elif(opcodes[opcode] == "xor"):
+
+        flag_reset()
+
+        result = op1 ^ op2
+
+    elif(opcodes[opcode] == "or"):
+
+        flag_reset()
+
+        result = op1 | op2
+
     elif(opcodes[opcode] == "sub"):
 
         flag_reset()
@@ -122,18 +136,6 @@ def TypeA(i):
             resInBin = resInBin[-16:]
             registers["111"] = 8
             result = convertToDecimal(resInBin)
-
-    elif(opcodes[opcode] == "xor"):
-
-        flag_reset()
-
-        result = op1 ^ op2
-
-    elif(opcodes[opcode] == "or"):
-
-        flag_reset()
-
-        result = op1 | op2
 
     elif(opcodes[opcode] == "and"):
 
@@ -155,12 +157,6 @@ def TypeB(i):
         flag_reset()
         registers[reg] = immediate
 
-    elif (opcodes[opcode] == "ls"):
-
-        flag_reset()
-        result = toShift + shiftBy
-        result = result[-16:]
-        registers[reg] = convertToDecimal(result)
 
     elif (opcodes[opcode] == "rs"):
 
@@ -170,7 +166,14 @@ def TypeB(i):
         registers[reg] = convertToDecimal(result)
 
 
-def TypeC(i, currFlag):
+    elif (opcodes[opcode] == "ls"):
+
+        flag_reset()
+        result = toShift + shiftBy
+        result = result[-16:]
+        registers[reg] = convertToDecimal(result)
+
+def TypeC(i, curr):
   
     opcode = i[0:5]
     reg1 = i[10:13]
@@ -204,6 +207,14 @@ def TypeC(i, currFlag):
 
         registers[reg1] = flippedNo
 
+    elif (opcodes[opcode] == "movR"):
+
+        flag_reset()
+        if(reg2 == "111"):
+            registers[reg1] = curr
+            return
+        registers[reg2] = registers[reg1]
+
     elif (opcodes[opcode] == "div"):
 
         flag_reset()
@@ -211,14 +222,6 @@ def TypeC(i, currFlag):
         remainder = registers[reg1] % registers[reg2]
         registers["000"] = quotient
         registers["001"] = remainder
-
-    elif (opcodes[opcode] == "movR"):
-
-        flag_reset()
-        if(reg2 == "111"):
-            registers[reg1] = currFlag
-            return
-        registers[reg2] = registers[reg1]
 
 
 def TypeD(i):
@@ -240,7 +243,7 @@ def TypeD(i):
         registers[reg] = valueToLoad
 
 
-def TypeE(i, currFlag, progc):
+def TypeE(i, curr, progc):
    
     opcode = i[0:5]
     location = convertToDecimal(i[8:])
@@ -249,22 +252,23 @@ def TypeE(i, currFlag, progc):
 
         flag_reset()
 
-    elif (opcodes[opcode] == "jgt"):
-        if(currFlag == 2):
-            progc = location
-        else:
-            progc += 1
-
-        flag_reset()
     elif (opcodes[opcode] == "jlt"):
-        if(currFlag == 4):
+        if(curr == 4):
             progc = location
         else:
             progc += 1
 
         flag_reset()
     elif (opcodes[opcode] == "je"):
-        if(currFlag == 1):
+        if(curr == 1):
+            progc = location
+        else:
+            progc += 1
+
+        flag_reset()
+
+    elif (opcodes[opcode] == "jgt"):
+        if(curr == 2):
             progc = location
         else:
             progc += 1
@@ -305,12 +309,12 @@ while(pc < len(memory)):
     y.append(pc)
     cycleNo += 1
 
-    pc_print = convertToBin(pc, 8)
+    pcPr = convertToBin(pc, 8)
 
     
-    currFlagR = registers["111"]
+    currR = registers["111"]
     
-    currFlagR = registers["111"]
+    currR = registers["111"]
     
     registers["111"] = 0
 
@@ -321,11 +325,11 @@ while(pc < len(memory)):
         flag_reset()
         stopCode = True
 
-    if((opcodes[op] == "add") or (opcodes[op] == "sub") or (opcodes[op] == "mul") or (opcodes[op] == "xor") or (opcodes[op] == "or") or (opcodes[op] == "and")):
+    if((opcodes[op] == "sub") or (opcodes[op] == "add") or (opcodes[op] == "mul") or (opcodes[op] == "xor") or (opcodes[op] == "or") or (opcodes[op] == "and")):
         TypeA(memory[pc])
 
     elif ((opcodes[op] == "cmp") or (opcodes[op] == "movR") or (opcodes[op] == "div") or (opcodes[op] == "not")):
-        TypeC(memory[pc], currFlagR)
+        TypeC(memory[pc], currR)
 
     elif((opcodes[op] == "movI") or (opcodes[op] == "ls") or (opcodes[op] == "rs")):
 
@@ -339,13 +343,14 @@ while(pc < len(memory)):
         TypeD(memory[pc])
 
     elif((opcodes[op] == "jmp") or (opcodes[op] == "jgt") or (opcodes[op] == "jlt") or (opcodes[op] == "je")):
-        pc = TypeE(memory[pc], currFlagR, pc)
-        pc_reg_dump(pc_print)
+        pc = TypeE(memory[pc], currR, pc)
+        pcReg(pcPr)
         continue
 
-    pc_reg_dump(pc_print)
+    pcReg(pcPr)
 
     pc += 1
 
 
 memory_dump(memory)
+
