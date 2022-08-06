@@ -1,10 +1,9 @@
-from matplotlib import pyplot as plt
 from sys import stdin
 
 pc = 0
 memory = []
 
-registerStored = {
+registers = {
     "000": 0,
     "001": 0,
     "010": 0,
@@ -36,192 +35,248 @@ opcodes = {
     "10111": "div",
     "11000": "rs",
     "11001": "ls",
-}
+    "00000": "addf",
+    "00001": "subf",
+    "00010": "movf",
+} 
+def flag_reset():
+    registers["111"]=0
 
-def convertToDecimal(Bstr):
-    num=list(Bstr)
-    ans=0
-    n=len(num)
-    i=0
-    while(i!=n):
-        if num[n-i-1]=='1':
-            ans+=2**i
-            i+=1
+def convertToBin(num, b):
+    if (num == 0):
+        return "0" * b
+    ans = ""
+    while (num > 1):
+        ans = str(num % 2) + ans
+        num = int(num / 2)
+    ans = "1" + ans
+    bL = b-len(ans)
+    if (bL > 0):
+        ans = ("0" * bL) + ans
+    return ans
+
+
+def convertToDecimal(stri):
+
+    binNum = str(stri)
+    
+    Ret = 0
+    n = len(binNum)
+    for i in range(n):
+        if binNum[n - i - 1] == "1":
+            Ret += pow(2, i)
         else:
-            i+=1
             continue
-    return ans
-
-def convertToBin(num, bits):
-    if num==0:
-        return "0" * bits
-    else:
-        ans=""
-        while(num>1):
-            solpart=str(num%2)
-            ans+=solpart
-            num=int(num/2)
-    ans="1"+ans
-
-    leftBits= bits - len(ans)
-    if (leftBits>0):
-        padd="0"* leftBits
-        ans=padd+ans
-    return ans
+    return Ret
 
 
-def countr_reg(pc):
-    print(pc, end=" ")
-    for i in registerStored.values():
-        print(convertToBin(i, 16), end=" ")
+def pc_reg_dump(count):
+
+    print(count, end=" ")
+    for vals in registers.values():
+        print(convertToBin(vals, 16), end=" ")
     print()
 
 
-def memDump(memory):
-    x=len(memory)
-    for i in range(x):
-        print(memory[i])
+def memory_dump(mem):
+    
+    for m in range(len(mem)):
+        print(mem[m])
 
-def sTypeA(inst):
-    opcode = inst[0:5]
-    desReg = inst[7:10]
-    op1 = registerStored[inst[10:13]]
-    op2 = registerStored[i[13:]]
+def TypeA(i):
+    
+    opcode = i[0:5]
+    dest_reg = i[13:]
+    reg1 = i[10:13]
+    reg2 = i[7:10]
+    op1 = registers[reg1]
+    op2 = registers[reg2]
 
     if(opcodes[opcode] == "add"):
+
+        flag_reset()
+
         result = op1 + op2
-        binaryVal = convertToBin(result, 16)
-        if len(binaryVal) > 16:
-            binaryVal = binaryVal[-16:]
-            registerStored["111"] = 8
+        resInBin = convertToBin(result, 16)
+        if len(resInBin) > 16:
+            resInBin = resInBin[-16:]
+            registers["111"] = 8
             result = convertToDecimal(resInBin)
-    elif(opcodes[opcode] == "xor"):
-        result = op1 ^ op2
-
-    elif(opcodes[opcode] == "or"):
-        result = op1 | op2
-
-    elif(opcodes[opcode] == "and"):
-        result = op1 & op2
-
 
     elif(opcodes[opcode] == "sub"):
+
+        flag_reset()
+
         result = op1 - op2
         if (result < 0):
             result = 0
-            registerStored["111"] = 8
+            registers["111"] = 8
 
     elif(opcodes[opcode] == "mul"):
+
+        flag_reset()
+
         result = op1 * op2
-        binaryVal = convertToBin(result, 16)
+        resInBin = convertToBin(result, 16)
         if len(resInBin) > 16:
-            binaryVal = binaryVal[-16:]
-            registerStored["111"] = 8
+            resInBin = resInBin[-16:]
+            registers["111"] = 8
             result = convertToDecimal(resInBin)
 
-    registerStored[desReg] = result
+    elif(opcodes[opcode] == "xor"):
 
-def sTypeB(inst):
+        flag_reset()
+
+        result = op1 ^ op2
+
+    elif(opcodes[opcode] == "or"):
+
+        flag_reset()
+
+        result = op1 | op2
+
+    elif(opcodes[opcode] == "and"):
+
+        flag_reset()
+
+        result = op1 & op2
+    registers[dest_reg] = result
+
+
+def TypeB(i):
     
-    opcode = inst[0:5]
-    reg = inst[5:8]
-    immediate = convertToDecimal(inst[8:])
-
+    opcode = i[0:5]
+    reg = i[5:8]
+    immediate = convertToDecimal(i[8:])
+    toShift = convertToBin(registers[reg], 16)
+    shiftBy = "0"*immediate
     if (opcodes[opcode] == "movI"):
-        registerStored[reg] = immediate
 
-    elif (opcodes[opcode] == "rs"):
-        result = ("0"*immediate) + convertToBin(registerStored[reg], 16)
-        result = result[0:16]
-        registerStored[reg] = convertToDecimal(result)
+        flag_reset()
+        registers[reg] = immediate
 
     elif (opcodes[opcode] == "ls"):
-        result = convertToBin(registerStored[reg], 16) + ("0"*immediate)
+
+        flag_reset()
+        result = toShift + shiftBy
         result = result[-16:]
-        registerStored[reg] = convertToDecimal(result)
+        registers[reg] = convertToDecimal(result)
+
+    elif (opcodes[opcode] == "rs"):
+
+        flag_reset()
+        result = shiftBy + toShift
+        result = result[0:16]
+        registers[reg] = convertToDecimal(result)
 
 
-def sTypeC(inst, currFlag):
-    opcode = inst[0:5]
-
+def TypeC(i, currFlag):
+  
+    opcode = i[0:5]
+    reg1 = i[10:13]
+    reg2 = i[13:]
     if (opcodes[opcode] == "cmp"):
-        val1 = registerStored[inst[10:13]]
-        val2 = registerStored[inst[13:]]
-        if (val1 < val2):
-            registerStored["111"] = 4
-        elif (val1 > val2):
-            registerStored["111"] = 2
+
+        flag_reset()
+        val1 = registers[reg1]
+        val2 = registers[reg2]
+        if (val1 > val2):
+
+            registers["111"] = 2
+        elif (val1 < val2):
+            registers["111"] = 4
         else:
-            registerStored["111"] = 1
+            registers["111"] = 1
 
     elif (opcodes[opcode] == "not"):
-        noToFlip = convertToBin(registerStored[inst[13:]], 16)
+
+        flag_reset()
+        noToFlip = convertToBin(registers[reg2], 16)
 
         inverting = ""
-        xx=len(noToFlip)
-        for i in range(x):
-            if(noToFlip[i] == "1"):
-                inverting += "0"
+        for ch in range(len(noToFlip)):
+            if(noToFlip[ch] == "1"):
+                inverting = inverting + "0"
             else:
-                inverting += "1"
+                inverting = inverting + "1"
 
         flippedNo = convertToDecimal(inverting)
 
-        registerStored[inst[10:13]] = flippedNo
+        registers[reg1] = flippedNo
 
     elif (opcodes[opcode] == "div"):
-        quotient = (registerStored[inst[10:13]]) // (registerStored[inst[13:]])
-        remainder = registerStored[inst[10:13]] % registerStored[inst[13:]]
-        registerStored["000"] = quotient
-        registerStored["001"] = remainder
+
+        flag_reset()
+        quotient = (registers[reg1]) // (registers[reg2])
+        remainder = registers[reg1] % registers[reg2]
+        registers["000"] = quotient
+        registers["001"] = remainder
 
     elif (opcodes[opcode] == "movR"):
-        if(inst[13:] == "111"):
-            registerStored[inst[10:13]] = currFlag
+
+        flag_reset()
+        if(reg2 == "111"):
+            registers[reg1] = currFlag
             return
-        registerStored[inst[10:13]] = registerStored[inst[13:]]
+        registers[reg2] = registers[reg1]
 
 
-def sTypeD(inst):
+def TypeD(i):
+   
     opcode = i[0:5]
-    valueToStore = registerStored[i[5:8]]
+    reg = i[5:8]
+    location = convertToDecimal(i[8:])
+    valueToStore = registers[reg]
     valueToLoad = convertToDecimal(memory[location])
 
     if(opcodes[opcode] == "st"):
-        memory[convertToDecimal(i[8:])] = convertToBin(valueToStore, 16)
+
+        flag_reset()
+        memory[location] = convertToBin(valueToStore, 16)
 
     elif(opcodes[opcode] == "ld"):
-        registerStored[i[5:8]] = valueToLoad
+
+        flag_reset()
+        registers[reg] = valueToLoad
 
 
-def sTypeE(i, currFlag, progc):
+def TypeE(i, currFlag, progc):
+   
     opcode = i[0:5]
+    location = convertToDecimal(i[8:])
     if(opcodes[opcode] == "jmp"):
-        progc = convertToDecimal(i[8:])
+        progc = location
+
+        flag_reset()
 
     elif (opcodes[opcode] == "jgt"):
         if(currFlag == 2):
-            progc = convertToDecimal(i[8:])
+            progc = location
         else:
             progc += 1
+
+        flag_reset()
     elif (opcodes[opcode] == "jlt"):
         if(currFlag == 4):
-            progc = convertToDecimal(i[8:])
+            progc = location
         else:
             progc += 1
+
+        flag_reset()
     elif (opcodes[opcode] == "je"):
         if(currFlag == 1):
-            progc = convertToDecimal(i[8:])
+            progc = location
         else:
             progc += 1
+
+        flag_reset()
 
     return progc
 
 
-
-
 x = []
 y = []
+
 
 for line in stdin:
 
@@ -252,47 +307,45 @@ while(pc < len(memory)):
 
     pc_print = convertToBin(pc, 8)
 
-    curr_Flag = registerStored["111"]
     
-    curr_Flag = registerStored["111"]
+    currFlagR = registers["111"]
+    
+    currFlagR = registers["111"]
+    
+    registers["111"] = 0
 
-    registerStored["111"] = 0
-
+  
     op = memory[pc][0:5]
 
     if(opcodes[op] == "hlt"):
+        flag_reset()
         stopCode = True
 
-    if( (opcodes[op] == "add") or (opcodes[op] == "sub") or (opcodes[op] == "mul") or (opcodes[op] == "xor") or (opcodes[op] == "or") or (opcodes[op] == "and")):
-        sTypeA(memory[pc])
+    if((opcodes[op] == "add") or (opcodes[op] == "sub") or (opcodes[op] == "mul") or (opcodes[op] == "xor") or (opcodes[op] == "or") or (opcodes[op] == "and")):
+        TypeA(memory[pc])
 
-    elif ( (opcodes[op] == "cmp") or (opcodes[op] == "movR") or (opcodes[op] == "div") or (opcodes[op] == "not")):
-        sTypeC(memory[pc], curr_Flag)
+    elif ((opcodes[op] == "cmp") or (opcodes[op] == "movR") or (opcodes[op] == "div") or (opcodes[op] == "not")):
+        TypeC(memory[pc], currFlagR)
 
-    elif( (opcodes[op] == "movI") or (opcodes[op] == "ls") or (opcodes[op] == "rs")):
-        sTypeB(memory[pc])
+    elif((opcodes[op] == "movI") or (opcodes[op] == "ls") or (opcodes[op] == "rs")):
 
-    elif( (opcodes[op] == "ld") or (opcodes[op] == "st")):
+        TypeB(memory[pc])
+
+    elif((opcodes[op] == "ld") or (opcodes[op] == "st")):
         cycleNo -= 1
         x.append(cycleNo)
         y.append(convertToDecimal(memory[pc][-8:]))
         cycleNo += 1
-        sTypeD(memory[pc])
+        TypeD(memory[pc])
 
-    elif( (opcodes[op] == "jmp") or (opcodes[op] == "jgt") or (opcodes[op] == "jlt") or (opcodes[op] == "je")):
-        pc = sTypeE(memory[pc], curr_Flag, pc)
-        countr_reg(pc_print)
+    elif((opcodes[op] == "jmp") or (opcodes[op] == "jgt") or (opcodes[op] == "jlt") or (opcodes[op] == "je")):
+        pc = TypeE(memory[pc], currFlagR, pc)
+        pc_reg_dump(pc_print)
         continue
 
-    countr_reg(pc_print)
+    pc_reg_dump(pc_print)
 
     pc += 1
 
 
-memDump(memory)
-
-plt.plot(x, y, 'o')
-plt.title('memory locations accessed during all different cycles')
-plt.xlabel('Cycle number')
-plt.ylabel('location accessed')
-plt.savefig('soln.png')
+memory_dump(memory)
